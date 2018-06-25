@@ -1,0 +1,126 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:int="http://www.springframework.org/schema/integration"
+	xmlns:int-sftp="http://www.springframework.org/schema/integration/sftp"
+	xmlns:task="http://www.springframework.org/schema/task" xmlns:context="http://www.springframework.org/schema/context"
+	xmlns:int-stream="http://www.springframework.org/schema/integration/stream"
+	xsi:schemaLocation="http://www.springframework.org/schema/integration/stream http://www.springframework.org/schema/integration/stream/spring-integration-stream-4.0.xsd
+		http://www.springframework.org/schema/integration/sftp http://www.springframework.org/schema/integration/sftp/spring-integration-sftp.xsd
+		http://www.springframework.org/schema/task http://www.springframework.org/schema/task/spring-task.xsd
+		http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+		http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context.xsd
+		http://www.springframework.org/schema/integration http://www.springframework.org/schema/integration/spring-integration.xsd">
+
+	<bean id="sftpSessionFactory"
+		class="org.springframework.integration.sftp.session.DefaultSftpSessionFactory">
+		<property name="host" value="0.0.0.0" />
+		<property name="port" value="22" />
+		<property name="user" value="tester" />
+		<property name="password" value="password" />
+		<property name="allowUnknownKeys" value="true"></property>
+	</bean>
+
+	<bean id="sftpSessionFactory2"
+		class="org.springframework.integration.sftp.session.DefaultSftpSessionFactory">
+		<property name="host" value="0.0.0.0" />
+		<property name="port" value="25" />
+		<property name="user" value="tester" />
+		<property name="password" value="password" />
+		<property name="allowUnknownKeys" value="true"></property>
+	</bean>
+
+	<bean id="cachingSessionFactory2"
+		class="org.springframework.integration.file.remote.session.CachingSessionFactory">
+		<constructor-arg ref="sftpSessionFactory2" />
+		<constructor-arg value="10" />
+		<property name="sessionWaitTimeout" value="1000" />
+	</bean>
+
+	<bean id="cachingSessionFactory"
+		class="org.springframework.integration.file.remote.session.CachingSessionFactory">
+		<constructor-arg ref="sftpSessionFactory" />
+		<constructor-arg value="10" />
+		<property name="sessionWaitTimeout" value="1000" />
+	</bean>
+	<int-sftp:inbound-channel-adapter id="sftpInbondAdapter"
+		channel="receiveChannel" session-factory="sftpSessionFactory"
+		local-directory="C:\\Users\\ppodutwar\\Desktop\\inbound"
+		remote-directory="/" auto-create-local-directory="true"
+		delete-remote-files="false" preserve-timestamp="true" filter="compositeFilter"
+		local-filter="acceptAll">
+
+
+		<int:poller fixed-rate="5000"/>
+	</int-sftp:inbound-channel-adapter>
+	
+	
+
+	<int:channel id="receiveChannel" />
+
+	<!-- <int:service-activator input-channel="receiveChannel"
+		expression="T(java.lang.System).out.println(payload.toString())">
+		<int:request-handler-advice-chain>
+			<bean
+				class="org.springframework.integration.handler.advice.ExpressionEvaluatingRequestHandlerAdvice">
+				<property name="onSuccessExpression" value="payload.delete()" />
+				<property name="successChannel" ref="afterSuccessDeleteChannel" />
+				<property name="onFailureExpression" value="payload.rename('/tmp/bad/' + payload.name)" />
+			</bean>
+		</int:request-handler-advice-chain>
+	</int:service-activator> -->
+
+	<int:transformer input-channel="afterSuccessDeleteChannel"
+		output-channel="stdout"
+		expression="'Removal of ' + inputMessage.payload.absolutePath + ' after transfer ' + (payload ? 'succeeded' : 'failed')" />
+
+	<int-stream:stdout-channel-adapter
+		id="stdout" append-newline="true" />
+
+	<bean id="acceptAll"
+
+		class="org.springframework.integration.file.filters.AcceptAllFileListFilter" />
+	
+
+	<bean id="compositeFilter"
+		class="org.springframework.integration.file.filters.CompositeFileListFilter">
+		<constructor-arg>
+			<list>
+				<bean
+					class="org.springframework.integration.sftp.filters.SftpSimplePatternFileListFilter">
+					<constructor-arg value="*.*" />
+				</bean>
+				<bean
+					class="org.springframework.integration.sftp.filters.SftpPersistentAcceptOnceFileListFilter">
+					<constructor-arg name="store" ref="metadataStore" />
+					<constructor-arg value="foo" />
+					<property name="flushOnUpdate" value="true" />
+
+				</bean>
+			</list>
+		</constructor-arg>
+	</bean>
+
+	<bean name="metadataStore"
+		class="org.springframework.integration.metadata.PropertiesPersistingMetadataStore">
+		<property name="baseDirectory" value="/tmp/" />
+	</bean>
+
+	<int:channel id="sendChannel" />
+	<int-sftp:outbound-channel-adapter
+
+		id="ftpOutbound" channel="receiveChannel" remote-directory="/"
+		
+		session-factory="sftpSessionFactory2" chmod="600" mode="REPLACE">
+		<int-sftp:request-handler-advice-chain>
+			<bean
+				class="org.springframework.integration.handler.advice.ExpressionEvaluatingRequestHandlerAdvice">
+				<property name="onSuccessExpression" value="payload.delete()" />
+				<property name="successChannel" ref="afterSuccessDeleteChannel" />
+				<property name="onFailureExpression" value="payload.rename('/tmp/bad/' + payload.name)" />
+			</bean>
+		</int-sftp:request-handler-advice-chain>
+	</int-sftp:outbound-channel-adapter>
+
+
+
+</beans>
