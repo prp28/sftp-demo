@@ -42,6 +42,7 @@
 		<constructor-arg value="10" />
 		<property name="sessionWaitTimeout" value="1000" />
 	</bean>
+
 	<int-sftp:inbound-channel-adapter id="sftpInbondAdapter"
 		channel="receiveChannel" session-factory="sftpSessionFactory"
 		local-directory="C:\\Users\\ppodutwar\\Desktop\\inbound"
@@ -50,24 +51,23 @@
 		local-filter="acceptAll">
 
 
-		<int:poller fixed-rate="5000"/>
+		<int:poller fixed-rate="5000">
+		
+		</int:poller>
+
+
 	</int-sftp:inbound-channel-adapter>
-	
-	
+
+
 
 	<int:channel id="receiveChannel" />
 
-	<!-- <int:service-activator input-channel="receiveChannel"
-		expression="T(java.lang.System).out.println(payload.toString())">
-		<int:request-handler-advice-chain>
-			<bean
-				class="org.springframework.integration.handler.advice.ExpressionEvaluatingRequestHandlerAdvice">
-				<property name="onSuccessExpression" value="payload.delete()" />
-				<property name="successChannel" ref="afterSuccessDeleteChannel" />
-				<property name="onFailureExpression" value="payload.rename('/tmp/bad/' + payload.name)" />
-			</bean>
-		</int:request-handler-advice-chain>
-	</int:service-activator> -->
+	<!-- <int:service-activator input-channel="receiveChannel" expression="T(java.lang.System).out.println(payload.toString())"> 
+		<int:request-handler-advice-chain> <bean class="org.springframework.integration.handler.advice.ExpressionEvaluatingRequestHandlerAdvice"> 
+		<property name="onSuccessExpression" value="payload.delete()" /> <property 
+		name="successChannel" ref="afterSuccessDeleteChannel" /> <property name="onFailureExpression" 
+		value="payload.rename('/tmp/bad/' + payload.name)" /> </bean> </int:request-handler-advice-chain> 
+		</int:service-activator> -->
 
 	<int:transformer input-channel="afterSuccessDeleteChannel"
 		output-channel="stdout"
@@ -79,7 +79,7 @@
 	<bean id="acceptAll"
 
 		class="org.springframework.integration.file.filters.AcceptAllFileListFilter" />
-	
+
 
 	<bean id="compositeFilter"
 		class="org.springframework.integration.file.filters.CompositeFileListFilter">
@@ -105,11 +105,13 @@
 		<property name="baseDirectory" value="/tmp/" />
 	</bean>
 
+
+
 	<int:channel id="sendChannel" />
 	<int-sftp:outbound-channel-adapter
 
 		id="ftpOutbound" channel="receiveChannel" remote-directory="/"
-		
+
 		session-factory="sftpSessionFactory2" chmod="600" mode="REPLACE">
 		<int-sftp:request-handler-advice-chain>
 			<bean
@@ -122,5 +124,6 @@
 	</int-sftp:outbound-channel-adapter>
 
 
+	
 
 </beans>
